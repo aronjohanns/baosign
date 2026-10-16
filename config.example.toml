@@ -1,0 +1,41 @@
+# Copy to ~/.config/baosign/config.toml (or set BAOSIGN_CONFIG).
+# Values in [default] apply to every profile unless the profile overrides them.
+# Paths support ~ and $VARS. Only `role` and `private_key_path` are required.
+
+[default]
+address = "https://openbao.example.com:8200"    # sets BAO_ADDR
+# namespace = "team-a"                          # sets BAO_NAMESPACE
+# bao_bin = "bao"
+
+# Run `bao login` first when not authenticated.
+login_method = "oidc"
+# login_args = ["-path=oidc", "role=default"]
+
+mount_point = "ssh"
+private_key_path = "~/.ssh/id_ed25519"
+# public_key_path = "~/.ssh/id_ed25519.pub"     # default: <private_key_path>.pub
+# cert_path = "~/.ssh/id_ed25519-cert.pub"      # default: <private_key_path>-cert.pub
+ttl = "10m"
+# extensions = ["permit-pty"]                   # default: the role's default_extensions
+
+[profiles.web-dev]
+role = "web-dev"
+valid_principals = "deploy"
+
+[profiles.web-prod]
+role = "web-prod"
+valid_principals = "deploy"
+mount_point = "ssh-prod"
+ttl = "5m"
+login_args = ["role=prod"]   # replaces the login_args from [default]
+
+[profiles.web-tunnel]
+role = "web-tunnel"
+valid_principals = "deploy"
+extensions = ["permit-pty", "permit-port-forwarding"]   # the role must allow these
+
+[profiles.db-admin]
+role = "db-admin"
+valid_principals = "dbadmin"
+private_key_path = "~/.ssh/db_admin_ed25519"
+cert_path = "~/.ssh/db_admin_ed25519-cert.pub"

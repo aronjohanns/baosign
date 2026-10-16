@@ -1,0 +1,13 @@
+[package]
+name = "baosign"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive", "env"] }
+dirs = "7.0.0"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+shellexpand = "3.1.2"
+toml = "1.1.8"
