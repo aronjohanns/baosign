@@ -42,12 +42,7 @@ cargo install baosign
 
 Binaries are on the [releases page](https://github.com/aronjohanns/baosign/releases).
 
-Then create a config from [config.example.toml](config.example.toml):
-
-```sh
-mkdir -p ~/.config/baosign
-curl -LsSf https://raw.githubusercontent.com/aronjohanns/baosign/main/config.example.toml -o ~/.config/baosign/config.toml
-```
+Then [create a config](#config).
 
 ## Usage
 
@@ -78,7 +73,24 @@ baosign list                          # list profiles
 
 ## Config
 
-See `config.example.toml`. Keys in `[default]` apply to every profile. A profile can override any of them.
+Linux/macOS: `~/.config/baosign/config.toml`. Windows: `%USERPROFILE%\.config\baosign\config.toml`.
+Use another file with `--config` or `$BAOSIGN_CONFIG`.
+
+Start from [config.example.toml](config.example.toml), then edit it:
+
+```sh
+# Linux / macOS
+mkdir -p ~/.config/baosign
+curl -LsSf https://raw.githubusercontent.com/aronjohanns/baosign/main/config.example.toml -o ~/.config/baosign/config.toml
+```
+
+```powershell
+# Windows (PowerShell)
+New-Item -ItemType Directory -Force "$HOME\.config\baosign" | Out-Null
+Invoke-WebRequest https://raw.githubusercontent.com/aronjohanns/baosign/main/config.example.toml -OutFile "$HOME\.config\baosign\config.toml"
+```
+
+Keys in `[default]` apply to every profile. A profile can override any of them.
 List values in a profile replace the list in `[default]`; they are not combined.
 Paths can use `~` and `$VARS`.
 
