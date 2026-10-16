@@ -42,6 +42,17 @@ cargo install baosign
 
 Binaries are on the [releases page](https://github.com/aronjohanns/baosign/releases).
 
+### Where it installs
+
+| Install | Linux / macOS | Windows |
+|---|---|---|
+| Installer script | `~/.baosign/bin/baosign` | `%USERPROFILE%\.baosign\bin\baosign.exe` |
+| Homebrew | `/opt/homebrew/bin/baosign` (Apple Silicon), `/usr/local/bin/baosign` (Intel) | |
+| Cargo | `~/.cargo/bin/baosign` | `%USERPROFILE%\.cargo\bin\baosign.exe` |
+
+The installer scripts add their folder to your `PATH`. Open a new terminal afterwards, or restart the app that runs `baosign`.
+Programs that don't load your shell profile, such as cron jobs or other apps' scripts, should use the full path.
+
 Then [create a config](#config).
 
 ## Usage
