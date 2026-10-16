@@ -12,11 +12,41 @@ Then connect with plain `ssh`. It picks up `<key>-cert.pub` next to your key on 
 
 `baosign ssh <profile> user@host` does the same, then connects for you.
 
+Requires the [OpenBao CLI](https://openbao.org/docs/install/) (`bao`) and OpenSSH.
+
 ## Install
 
+### macOS
+
+```
+brew install aronjohanns/tap/baosign
+```
+
+### Linux / macOS
+
+```
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/aronjohanns/baosign/releases/latest/download/baosign-installer.sh | sh
+```
+
+### Windows
+
+```
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/aronjohanns/baosign/releases/latest/download/baosign-installer.ps1 | iex"
+```
+
+### Cargo
+
+```
+cargo install baosign
+```
+
+Binaries are on the [releases page](https://github.com/aronjohanns/baosign/releases).
+
+Then create a config from [config.example.toml](config.example.toml):
+
 ```sh
-cargo install --path .
-mkdir -p ~/.config/baosign && cp config.example.toml ~/.config/baosign/config.toml
+mkdir -p ~/.config/baosign
+curl -LsSf https://raw.githubusercontent.com/aronjohanns/baosign/main/config.example.toml -o ~/.config/baosign/config.toml
 ```
 
 ## Usage
