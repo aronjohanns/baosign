@@ -3,10 +3,10 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand};
 use serde::Deserialize;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 /// Sign SSH keys with OpenBao using named profiles, like `aws --profile`.
 #[derive(Parser, Debug)]
@@ -24,18 +24,11 @@ struct Cli {
 enum Cmd {
     /// Sign your public key using a profile
     Sign {
-        /// Profile to use
-        #[arg(env = "BAOSIGN_PROFILE", default_value = "default")]
-        profile: String,
-
         #[command(flatten)]
         opts: SignOpts,
     },
     /// Sign your public key, then connect with ssh
     Ssh {
-        /// Profile to use
-        profile: String,
-
         #[command(flatten)]
         opts: SignOpts,
 
@@ -52,6 +45,10 @@ enum Cmd {
 
 #[derive(Args, Debug)]
 struct SignOpts {
+    /// Profile to use
+    #[arg(short, long, env = "BAOSIGN_PROFILE", default_value = "default")]
+    profile: String,
+
     /// Print the commands instead of running them
     #[arg(short = 'n', long)]
     dry_run: bool,
@@ -71,8 +68,8 @@ struct SignOpts {
 
 impl SignOpts {
     /// The selected profile with command-line overrides applied.
-    fn profile(&self, config: &Config, name: &str) -> Result<Profile> {
-        let mut p = config.resolve(name)?;
+    fn resolve(&self, config: &Config) -> Result<Profile> {
+        let mut p = config.resolve(&self.profile)?;
         if self.role.is_some() {
             p.role = self.role.clone();
         }
@@ -155,7 +152,11 @@ impl Config {
                 let known: Vec<&str> = self.profiles.keys().map(String::as_str).collect();
                 bail!(
                     "profile '{name}' not found (available: {})",
-                    if known.is_empty() { "none".into() } else { known.join(", ") }
+                    if known.is_empty() {
+                        "none".into()
+                    } else {
+                        known.join(", ")
+                    }
                 )
             }
         }
@@ -185,7 +186,11 @@ impl KeyPaths {
             Some(path) => expand(path)?,
             None => format!("{private}-cert.pub"),
         };
-        Ok(KeyPaths { private, public, cert })
+        Ok(KeyPaths {
+            private,
+            public,
+            cert,
+        })
     }
 }
 
@@ -329,17 +334,16 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
-        Cmd::Sign { profile, opts } => {
-            run_sign(&opts.profile(&config, &profile)?, opts.dry_run)?;
+        Cmd::Sign { opts } => {
+            run_sign(&opts.resolve(&config)?, opts.dry_run)?;
             Ok(())
         }
         Cmd::Ssh {
-            profile,
             opts,
             target,
             ssh_args: extra,
         } => {
-            let p = opts.profile(&config, &profile)?;
+            let p = opts.resolve(&config)?;
             let keys = run_sign(&p, opts.dry_run)?;
             let argv = ssh_args(&keys, &target, &extra);
             if opts.dry_run {
@@ -496,34 +500,40 @@ mod tests {
             }
         );
         let p = cfg().resolve("prod").unwrap();
-        assert_eq!(KeyPaths::from_profile(&p).unwrap().cert, "/certs/prod-cert.pub");
+        assert_eq!(
+            KeyPaths::from_profile(&p).unwrap().cert,
+            "/certs/prod-cert.pub"
+        );
     }
 
     #[test]
     fn cli_parses_subcommands() {
-        let cli = Cli::try_parse_from(["baosign", "sign", "dev", "--ttl", "1m"]).unwrap();
+        let cli =
+            Cli::try_parse_from(["baosign", "sign", "--profile", "dev", "--ttl", "1m"]).unwrap();
         match cli.command {
-            Cmd::Sign { profile, opts } => {
-                assert_eq!(profile, "dev");
+            Cmd::Sign { opts } => {
+                assert_eq!(opts.profile, "dev");
                 assert_eq!(opts.ttl.as_deref(), Some("1m"));
             }
             other => panic!("unexpected {other:?}"),
         }
-        let cli = Cli::try_parse_from(["baosign", "ssh", "dev", "u@h", "--", "-L", "80:x:80"]).unwrap();
+        let cli =
+            Cli::try_parse_from(["baosign", "ssh", "-p", "dev", "u@h", "--", "-L", "80:x:80"])
+                .unwrap();
         match cli.command {
             Cmd::Ssh {
-                profile,
+                opts,
                 target,
                 ssh_args,
-                ..
             } => {
-                assert_eq!(profile, "dev");
+                assert_eq!(opts.profile, "dev");
                 assert_eq!(target, "u@h");
                 assert_eq!(ssh_args, ["-L", "80:x:80"]);
             }
             other => panic!("unexpected {other:?}"),
         }
-        assert!(Cli::try_parse_from(["baosign", "ssh", "u@h"]).is_err());
+        assert!(Cli::try_parse_from(["baosign", "ssh"]).is_err());
+        assert!(Cli::try_parse_from(["baosign", "sign", "dev"]).is_err());
         assert!(matches!(
             Cli::try_parse_from(["baosign", "list"]).unwrap().command,
             Cmd::List
@@ -531,11 +541,33 @@ mod tests {
     }
 
     #[test]
+    fn profile_defaults_to_default() {
+        // SAFETY: no other test reads or writes BAOSIGN_PROFILE.
+        unsafe { std::env::remove_var("BAOSIGN_PROFILE") };
+        let cli = Cli::try_parse_from(["baosign", "ssh", "u@h"]).unwrap();
+        match cli.command {
+            Cmd::Ssh { opts, target, .. } => {
+                assert_eq!(opts.profile, "default");
+                assert_eq!(target, "u@h");
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+        match Cli::try_parse_from(["baosign", "sign"]).unwrap().command {
+            Cmd::Sign { opts } => assert_eq!(opts.profile, "default"),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
     fn ssh_command_line() {
         let p = cfg().resolve("prod").unwrap();
         let keys = KeyPaths::from_profile(&p).unwrap();
         assert_eq!(
-            ssh_args(&keys, "deploy@host", &["-L".into(), "8080:localhost:80".into()]),
+            ssh_args(
+                &keys,
+                "deploy@host",
+                &["-L".into(), "8080:localhost:80".into()]
+            ),
             [
                 "-i",
                 "/keys/id",

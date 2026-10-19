@@ -2,7 +2,7 @@
 
 Sign SSH keys with OpenBao, using profiles like `aws --profile`.
 
-`baosign sign <profile>`:
+`baosign sign --profile <profile>`:
 
 1. Checks your token with `bao token lookup`. If it is not valid and `login_method` is set, runs `bao login`.
 2. Signs your public key with `bao write <mount_point>/sign/<role>`.
@@ -10,7 +10,9 @@ Sign SSH keys with OpenBao, using profiles like `aws --profile`.
 
 Then connect with plain `ssh`. It picks up `<key>-cert.pub` next to your key on its own.
 
-`baosign ssh <profile> user@host` does the same, then connects for you.
+`baosign ssh --profile <profile> user@host` does the same, then connects for you.
+
+Without `--profile`, baosign uses `$BAOSIGN_PROFILE`, then `default`.
 
 Requires the [OpenBao CLI](https://openbao.org/docs/install/) (`bao`) and OpenSSH.
 
@@ -58,24 +60,26 @@ Then [create a config](#config).
 ## Usage
 
 ```sh
-baosign sign web-dev                  # sign using the web-dev profile
+baosign sign -p web-dev               # sign using the web-dev profile
 ssh -i ~/.ssh/id_ed25519 deploy@web01.example.com
 
-baosign ssh web-dev deploy@web01.example.com                         # sign, then connect
-baosign ssh web-dev deploy@web01.example.com -- -L 8080:localhost:80 # args after -- go to ssh
-baosign ssh web-dev deploy@web01.example.com -n                      # dry run
+baosign ssh -p web-dev deploy@web01.example.com                         # sign, then connect
+baosign ssh -p web-dev deploy@web01.example.com -- -L 8080:localhost:80 # args after -- go to ssh
+baosign ssh -p web-dev deploy@web01.example.com -n                      # dry run
 
-baosign sign web-dev --ttl 2m         # override per run (works with ssh too)
-baosign sign web-dev -n               # dry run: print the commands (works with ssh too)
+baosign sign -p web-dev --ttl 2m      # override per run (works with ssh too)
+baosign sign -p web-dev -n            # dry run: print the commands (works with ssh too)
 baosign sign                          # uses $BAOSIGN_PROFILE, then `default`
+baosign ssh deploy@web01.example.com  # same for ssh
 baosign list                          # list profiles
 ```
 
 | Command / flag | What it does |
 |---|---|
-| `sign [profile]` | Sign your key with this profile. Default: `$BAOSIGN_PROFILE`, then `default`. |
-| `ssh <profile> <user@host> [-- args]` | Sign, then run `ssh`. The profile is required. Args after `--` go to `ssh`. |
+| `sign` | Sign your key. |
+| `ssh <user@host> [-- args]` | Sign, then run `ssh`. Args after `--` go to `ssh`. |
 | `list` | List profiles. |
+| `-p`, `--profile` | `sign`/`ssh`: profile to use. Default: `$BAOSIGN_PROFILE`, then `default`. |
 | `-n`, `--dry-run` | `sign`/`ssh`: print the commands instead of running them. |
 | `--role` | `sign`/`ssh`: use this role instead of the profile's. |
 | `--principals` | `sign`/`ssh`: use these principals instead of the profile's. |
